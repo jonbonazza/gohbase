@@ -87,11 +87,13 @@ func (rcc *clientRegionCache) closeAll() {
 
 func (rcc *clientRegionCache) clientDown(c hrpc.RegionClient) map[hrpc.RegionInfo]struct{} {
 	rcc.m.Lock()
-	downregions := rcc.regions[c]
+	downregions, ok := rcc.regions[c]
 	delete(rcc.regions, c)
 	rcc.m.Unlock()
 
-	log.WithField("client", c).Info("removed region client")
+	if ok {
+		log.WithField("client", c).Info("removed region client")
+	}
 	return downregions
 }
 
@@ -142,7 +144,8 @@ func (krc *keyRegionCache) get(key []byte) ([]byte, hrpc.RegionInfo) {
 
 func isRegionOverlap(regA, regB hrpc.RegionInfo) bool {
 	// if region's stop key is empty, it's assumed to be the greatest key
-	return bytes.Equal(regA.Table(), regB.Table()) &&
+	return bytes.Equal(regA.Namespace(), regB.Namespace()) &&
+		bytes.Equal(regA.Table(), regB.Table()) &&
 		(len(regB.StopKey()) == 0 || bytes.Compare(regA.StartKey(), regB.StopKey()) < 0) &&
 		(len(regA.StopKey()) == 0 || bytes.Compare(regA.StopKey(), regB.StartKey()) > 0)
 }
